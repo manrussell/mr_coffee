@@ -26,9 +26,14 @@
  * 
 */
   //Arduino
-#define ISR_FREQ_HZ       60
-#define CLOCK_SPEED_MHZ   16000000
+#define ISR_FREQ_HZ         60
+#define CLOCK_SPEED_MHZ     16000000
+#define DO_BUTTON_INTERRUPT  TRUE
 
+#define KIT_FACE    0
+#define BENDER_FACE 1
+
+// maybe rename sample_isr>>
 #define TIMER1_COUNTER    (65536-(CLOCK_SPEED_MHZ/256)/ISR_FREQ_HZ)
 
 #define I2C_SPEED         800000L
@@ -38,6 +43,8 @@
 #define NUM_OF_ROWS       5
 #define PWMPIN            8
 #define MOSFET_GATE_PIN   7
+
+#define BUTTON_PIN_0        3
 
   //Matrix
 #define MATRIX_RESETPIN   2
@@ -73,16 +80,16 @@
 */ 
 
 /* need this for serial to work */
-//#define DO_SERIAL_DEBUG 
+#define DO_SERIAL_DEBUG 
 
 /* PRINT_ADVALUE(adc_val); */
-//#define DO_PRINT_ADVALUE
+#define DO_PRINT_ADVALUE
 
 /* MATRIX_DEBUG prints out text in the matrix bit */
 //#define DO_MATRIX_DEBUG
 
 /* PRINT_MATRIXVALUE(new_matrix_peak_val); */
-//#define DO_PRINT_MATRIXVALUE 
+#define DO_PRINT_MATRIXVALUE 
 
 /* DO_PRINT_AUTOGAIN_VALS: prints adc-val x lowest_dcoffset x hoghest_input_read */
 //#define DO_PRINT_AUTOGAIN_VALS

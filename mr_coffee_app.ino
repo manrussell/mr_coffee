@@ -1,7 +1,30 @@
-// HARDARE  PINS
-// sda a5   
-// sck a4
-// pin output to matrix reset pind2
+// HARDARE  -> PINS:
+// ================
+
+//  Analogue:
+//  ========
+// sck -> arduino a0 to mic opamp
+// sck -> arduino a4
+// sda -> arduino a5   
+
+//  Digital:
+//  =======
+// pin output to matrix reset -> arduino pin d2
+// button interrupt   d3
+// mosfet to clear peak detector -> arduino d7
+// speaker -> arduino
+// power -> arduino 5V to  matrix
+// power -> arduino 3.3V to .. nothing 
+// ground -> mic and to matrix
+//
+
+// debounce circuit from http://www.ganssle.com/debouncing-pt2.htm
+// DO_BUTTON_INTERRUPT true
+// R1 = 82kOhm
+// R2 = 17K7 Ohm
+// C = 1uF
+// button_0_func()
+
 
 //=-=-=-=//
 // NOTES
@@ -48,6 +71,7 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t 
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z );
 //void make_sine_table(uint16_t trail_width, uint16_t table, uint8_t brightness);
 void make_sine_table(uint16_t trail_width, mouth_data *mouthD, uint8_t brightness);
+void button_0_func();
 
 using namespace lr;
 AS1130 ledDriver;
@@ -58,7 +82,7 @@ AS1130 ledDriver;
  * 
 ***************/
 
-static int adc_state = SAMPLE_ADC_DATA;             // either SAMPLE_ADC_DATA or PROCESS_ADC_DATA
+static volatile uint8_t adc_state = SAMPLE_ADC_DATA;             // either SAMPLE_ADC_DATA or PROCESS_ADC_DATA
 
 // auto gain
 static uint16_t lowest_dcoffset = 1024;
@@ -77,6 +101,9 @@ static uint16_t highest_input_read = 250;
     4, 8, 8, 4, 4, 4, 4, 4
   };
 #endif
+
+static int buttonState = 0;         // variable for reading the pushbutton status
+
 
     /***************
      * Matrix
@@ -144,6 +171,7 @@ void setup()
     pinMode(MOSFET_GATE_PIN, OUTPUT);
   #endif
   
+  
   Wire.begin();
   Wire.setClock( I2C_SPEED );
   
@@ -203,6 +231,11 @@ void setup()
   TCCR1B |= (1 << CS12);    // 256 prescaler 
   TIMSK1 |= (1 << TOIE1);   // enable timer overflow interrupt
 
+  #if DO_BUTTON_INTERRUPT
+    pinMode(BUTTON_PIN_0, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_0), button_0_func, FALLING );
+  #endif
+
   interrupts();             // enable all interrupts
 
   #ifdef MUSIC
@@ -241,20 +274,53 @@ ISR(TIMER1_OVF_vect)
   {
     adc_state = PROCESS_ADC_DATA ;
   }
-
+  
   TCNT1 = TIMER1_COUNTER;   // reload timer
 }
+
+#if DO_BUTTON_INTERRUPT
+//effectively my isr for button press
+  uint8_t button_state = 0;
+  
+  void button_0_func()
+  {
+    //alternate face type
+    if ( button_state == KIT_FACE)
+    {
+       button_state = BENDER_FACE;
+    }
+    else
+    {
+      button_state = KIT_FACE;
+    }
+  }
+#endif
+
 
 void loop() 
 {
   static uint16_t new_matrix_peak_val = 0;
   static uint16_t old_matrix_peak_val = 1;
+  static uint8_t  max_map_val = 11; 
   
   static int16_t adcVals[3] = {0,0,0};
 
   /* Process Data */
   if( adc_state == PROCESS_ADC_DATA )
   {
+    #if DO_BUTTON_INTERRUPT
+      if ( button_state == KIT_FACE)
+      {
+        max_map_val = 11; // 0-11 good for KIT_FACE style
+        //Serial.println("kitnface");
+      }
+      else // ( button_state == BENDER_FACE )
+      {
+        max_map_val = 2;
+        //Serial.println("bender face");
+      }
+    #endif
+    
     uint16_t adc_val = analogRead(A0);
 
     #ifdef USE_MOSFET
@@ -302,7 +368,7 @@ void loop()
     
     // Whatever the relative values are 
     //
-    adcVals[0] = map( adc_val, lowest_dcoffset, highest_input_read , 11, 0);   
+    adcVals[0] = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
          
     //if( (adcVals[0] > 11)  || (adcVals[0] < 0) )
     //{
