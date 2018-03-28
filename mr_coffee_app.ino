@@ -435,8 +435,9 @@ void loop()
 } /* end of main loop */
 
 
-void set_matrix_leds_bender(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size )
+/*void set_matrix_leds_bender(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size )
 {
+    uint8_t col=0;
   for(col=0; col<=4; col++)
   {
   // do teeth
@@ -455,7 +456,7 @@ void set_matrix_leds_bender(uint8_t frame, uint8_t row_val, uint8_t set_clear, u
   }
   
   
-}
+}*/
 
 
 
