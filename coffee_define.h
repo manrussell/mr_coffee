@@ -156,7 +156,7 @@ const uint8_t pwmsetBenderMouth[] = {
 
 typedef struct
 {
-  uint8_t trail_start_point;
+  uint8_t trail_start_point; // set to 11 so, the min LHS or is it RHS
   uint8_t width;
   uint8_t *trail_clear;
   uint8_t *trail_type;

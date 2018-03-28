@@ -435,6 +435,29 @@ void loop()
 } /* end of main loop */
 
 
+void set_matrix_leds_bender(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size )
+{
+  for(col=0; col<=4; col++)
+  {
+  // do teeth
+    for(i=0; i<=pattern_width; i++)
+    {
+        if (row_val >= lhsvalue+i) 
+        {
+          // pattern start pointer must not go negative or greter than array size - pass in array size?? or have all same size?
+          // this was [ pattern_start_point-i ] but 
+          point = (pattern_start_point-i ) % array_size;
+          
+          ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val-i, col), trail_pattern_array[ point ] );
+          MATRIX_DEBUG("LHS trail ");
+        }
+    }
+  }
+  
+  
+}
+
+
 
 void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size )
 {
@@ -471,10 +494,10 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t 
     
     // centre trail - bighest
     // (frame '0' , led index, vlaue)
-    ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val, col), trail_pattern_array[ pattern_start_point ] );
+    //ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val, col), trail_pattern_array[ pattern_start_point ] );
       
     // LHS trail, if (row_val >= 1 ) ok LHS trail
-    for(i=1; i<=pattern_width; i++)
+    for(i=0; i<=pattern_width; i++)
     {
         if (row_val >= lhsvalue+i) 
         {
@@ -525,16 +548,16 @@ void make_sine_table(uint16_t trail_width, mouth_data *mouthD, uint8_t brightnes
 {
   uint8_t i=0;
   uint8_t val =0;
-
-  mouthD->width = trail_width;
+  
   //uint8_t *tablet = mouthD->trail_type[0];
 
   if( (trail_width > 12) || (trail_width < 2) )
   {
     //error
-    Serial.println("Sine table error");
-    return;
+    trail_width = 11;
   }
+  
+  mouthD->width = trail_width;
   
   for(i=0; i<=trail_width; i++)
   {
