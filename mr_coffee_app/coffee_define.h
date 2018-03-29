@@ -45,10 +45,13 @@
 #define MOSFET_GATE_PIN   7
 
 #define BUTTON_PIN_0        3
+#define BUTTON_PIN_1        2
 
   //Matrix
-#define MATRIX_RESETPIN   2
+#define MATRIX_RESETPIN   4
 
+#define CLEAR       1
+#define WRITE_ARRAY 0
 /* 
  * Matrix Visuals
  * 
@@ -56,6 +59,8 @@
 
 //#define VU_TYPE_SINE
 #define VU_TYPE_GAUSS
+
+#define COFFEE_BACKPLATE //better with bigger sine table
 
 //better description here ... 
 #define GAUSS_DIST_WIDTH  3 // one half - exclude the max value eg 1,2,3,(X),3,2,1
@@ -83,13 +88,13 @@
 #define DO_SERIAL_DEBUG 
 
 /* PRINT_ADVALUE(adc_val); */
-#define DO_PRINT_ADVALUE
+//#define DO_PRINT_ADVALUE
 
 /* MATRIX_DEBUG prints out text in the matrix bit */
 //#define DO_MATRIX_DEBUG
 
 /* PRINT_MATRIXVALUE(new_matrix_peak_val); */
-#define DO_PRINT_MATRIXVALUE 
+//#define DO_PRINT_MATRIXVALUE 
 
 /* DO_PRINT_AUTOGAIN_VALS: prints adc-val x lowest_dcoffset x hoghest_input_read */
 //#define DO_PRINT_AUTOGAIN_VALS
