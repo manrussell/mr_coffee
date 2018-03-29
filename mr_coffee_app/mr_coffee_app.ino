@@ -70,7 +70,7 @@ filter
 void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size );
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z );
 //void make_sine_table(uint16_t trail_width, uint16_t table, uint8_t brightness);
-void make_sine_table(uint16_t trail_width, mouth_data *mouthD, uint8_t brightness);
+void make_sine_table( mouth_data *mouthD, uint8_t brightness);
 void button_0_func();
 
 using namespace lr;
@@ -131,10 +131,10 @@ const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,
   mouth_data mouth = 
   {
     .trail_start_point  = 12,
-    .width              = 3,
+    .trail_width              = 3,
+	.array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
-    .trail_type         = &gauss_dist_array[0],
-    .arr_size           = 24,
+    .trail_data         = &gauss_dist_array[0],
   };
 #endif
 
@@ -142,21 +142,16 @@ const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,
     /***************
      * Matrix SINE
     ***************/
-//const uint8_t sine_table[] = {255,251,238,218,191,160,128,95,64,37,17,4,0,4,17,37,64,95};
 uint8_t sine_table[24] = {0}; // 256,128,34,0
-//uint8_t sine_table[] = {255,128,34,0,34,128}; // 256,128,34,0
-
-// 128,191,238,255,238,191,128,64,17,0,17,64,128
-
 
 #ifdef VU_TYPE_SINE
   mouth_data mouth = 
   {
     .trail_start_point  = 12, //wher in array to start looping from, was 0
-    .width              = 3,       // width of lips
+    .trail_width              = 3,       // width of lips
+	.array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
-    .trail_type         = &sine_table[0],
-    .arr_size           = 24,    // loop length was smaller...!
+    .trail_data         = &sine_table[0],
   };
 #endif
 
@@ -203,7 +198,7 @@ void setup()
 
   /* make up sine table */
   // void make_sine_table(uint16_t trail_width, moutn *mouth, uint8_t brightness)
-  make_sine_table( 3, &mouth, 128);
+  make_sine_table( &mouth, 255);
   
   /*  Set-up everything.
    *  Ram config 1, with 36 frames and 1 pwm set, we require 1 frame (all leds on) and 1 pwm set ( which we alter) 
@@ -400,10 +395,10 @@ void loop()
           trail_start_point = mouth.trail_start_point++;
         #endif
         
-        uint8_t width        = mouth.width;
+        uint8_t trail_width        = mouth.trail_width;
         uint8_t *trail_clear = mouth.trail_clear;
-        uint8_t *trail_type  = mouth.trail_type;
-        uint8_t arr_size     = mouth.arr_size; // mod this 
+        uint8_t *trail_data  = mouth.trail_data;
+        uint8_t array_length     = mouth.array_length; // mod this 
       
 
       #ifdef PULSE_MOUTH
@@ -412,18 +407,18 @@ void loop()
 
       /* Send values to the Matrix */
       
-      // set_matrix_leds( frame,  row_val,  set_clear,  *trail_pattern_array,  lhs_or_rhs,  pattern_width,  pattern_start_point, array_size )
+      // set_matrix_leds( frame,  row_val,  set_clear,  *trail_pattern_array,  lhs_or_rhs,  pattern_trail_width,  pattern_start_point, array_size )
       // removed made change so that LHS and RHS have the same trail, but 
-      // instead put in arr_size for pulse mouth 
+      // instead put in array_length for pulse mouth 
       // set clear not used
       // 
       
-      set_matrix_leds(0, old_matrix_peak_val, 0, trail_clear, LHS, width, trail_start_point, 1 );
-      set_matrix_leds(0, new_matrix_peak_val, 0, trail_type,  LHS, width, trail_start_point, arr_size );
+      set_matrix_leds(0, old_matrix_peak_val, 0, trail_clear, LHS, trail_width, trail_start_point, 1 );
+      set_matrix_leds(0, new_matrix_peak_val, 0, trail_data,  LHS, trail_width, trail_start_point, array_length );
       
       //clear RHS then write new values
-      set_matrix_leds(0, 24-old_matrix_peak_val, 0, trail_clear, RHS, width, trail_start_point, 1 );
-      set_matrix_leds(0, 24-new_matrix_peak_val, 0, trail_type,  RHS, width, trail_start_point, arr_size );
+      set_matrix_leds(0, 24-old_matrix_peak_val, 0, trail_clear, RHS, trail_width, trail_start_point, 1 );
+      set_matrix_leds(0, 24-new_matrix_peak_val, 0, trail_data,  RHS, trail_width, trail_start_point, array_length );
       
       old_matrix_peak_val = new_matrix_peak_val;
     }
@@ -545,41 +540,37 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t 
  * sine
  * 
 */
-void make_sine_table(uint16_t trail_width, mouth_data *mouthD, uint8_t brightness)
+void make_sine_table( mouth_data *mouthD, uint8_t brightness)
 {
   uint8_t i=0;
   uint8_t val =0;
-  
-  //uint8_t *tablet = mouthD->trail_type[0];
 
-  if( (trail_width > 12) || (trail_width < 2) )
+  if( (mouthD->trail_width > 12) || (mouthD->trail_width < 2) )
   {
     //error
-    trail_width = 11;
+    mouthD->trail_width = 11;
   }
   
-  mouthD->width = trail_width;
-  
-  for(i=0; i<=trail_width; i++)
+  for(i=0; i<=mouthD->trail_width; i++)
   {
-    val = uint8_t ( (double)brightness * cos( i * ( (PI/2)/(float)trail_width)) );
+    val = uint8_t ( (double)brightness * cos( i * ( (PI/2)/(float)mouthD->trail_width)) );
     Serial.print("val = \t");
     Serial.println(val);
     
     //RHS
     //tablet[12+i] = val; // not note start at 1
-    mouthD->trail_type[12 + i] = val;
+    mouthD->trail_data[12 + i] = val;
     
     //LHD
     //tablet[11 - i] = val;
-    mouthD->trail_type[11-i] = val;
+    mouthD->trail_data[11-i] = val;
   }
 
   //
-  Serial.print("trail_width = "); Serial.print(trail_width); Serial.print("\t mouthD->width = \t"); Serial.println( mouthD->width); 
+  Serial.print("\t mouthD->trail_width = \t"); Serial.println( mouthD->trail_width); 
   for(i=0; i<24; i++)
   {
-    Serial.print("i = "); Serial.print(i); Serial.print("mouthD->trail_type[i] = "); Serial.println( mouthD->trail_type[i]); 
+    Serial.print("i = "); Serial.print(i); Serial.print("mouthD->trail_data[i] = "); Serial.println( mouthD->trail_data[i]); 
   }
   Serial.println("");
 
