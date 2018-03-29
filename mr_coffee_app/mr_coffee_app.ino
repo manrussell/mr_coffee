@@ -131,8 +131,8 @@ const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,
   mouth_data mouth = 
   {
     .trail_start_point  = 12,
-    .trail_width              = 3,
-	.array_length       = 24,    // loop length was smaller...!
+    .trail_width        = 3, // width of bars excluding the peak value
+	  .array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
     .trail_data         = &gauss_dist_array[0],
   };
@@ -142,14 +142,14 @@ const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,
     /***************
      * Matrix SINE
     ***************/
-uint8_t sine_table[24] = {0}; // 256,128,34,0
+uint8_t sine_table[24] = {0};
 
 #ifdef VU_TYPE_SINE
   mouth_data mouth = 
   {
     .trail_start_point  = 12, //wher in array to start looping from, was 0
-    .trail_width              = 3,       // width of lips
-	.array_length       = 24,    // loop length was smaller...!
+    .trail_width        = 5,     // width of bars excluding the peak value
+	  .array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
     .trail_data         = &sine_table[0],
   };
@@ -298,7 +298,7 @@ void loop()
   static uint16_t old_matrix_peak_val = 1;
   static uint8_t  max_map_val = 11; 
   
-  static int16_t adcVals[3] = {0,0,0};
+  static int16_t adcVals = {0};
 
   /* Process Data */
   if( adc_state == PROCESS_ADC_DATA )
@@ -363,25 +363,10 @@ void loop()
     
     // Whatever the relative values are 
     //
-    adcVals[0] = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
-         
-    //if( (adcVals[0] > 11)  || (adcVals[0] < 0) )
-    //{
-      //adcVals[0] = 0;
-    //}
-
-    /* Filter section */
-    //  low pass, moving average 3
-    // new_matrix_peak_val =  (adcVals[0]  + adcVals[1] + adcVals[2])/3;
-    // adcVals[1] = adcVals[0]; // update 
-    // adcVals[2] = adcVals[1]; // update 
-    
-    // moving average 2
-    // new_matrix_peak_val =  (adcVals[0]  + adcVals[1])/2;
-    // adcVals[1] = adcVals[0]; // update 
+    adcVals = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
 
     // no lowpass
-    new_matrix_peak_val = adcVals[0];
+    new_matrix_peak_val = adcVals;
 
     PRINT_MATRIXVALUE(new_matrix_peak_val);
 
