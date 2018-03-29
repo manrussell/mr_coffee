@@ -58,7 +58,7 @@
 */
 
 //#define VU_TYPE_SINE
-#define VU_TYPE_GAUSS
+//#define VU_TYPE_GAUSS
 
 #define COFFEE_BACKPLATE //better with bigger sine table
 

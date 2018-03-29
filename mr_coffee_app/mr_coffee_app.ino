@@ -168,7 +168,9 @@ uint8_t sine_table[24] = {0};
     .trail_clear        = &background_array[0],
     .trail_data         = &sine_table[0],
   };
-  
+
+uint8_t all_led_on_full[24] = {255};
+
 mouth_data *mouth = &mouth_gauss; 
 
 /***************
@@ -432,29 +434,33 @@ void loop()
       // button machine
       // 1 = basic gauss
       // 2 = basic sine
-      // 3 = coffee strobbing
-      // 4 = Mr coffee
+      // 3 = coffee strobbing // small width
+      // 4 = Mr coffee        // long width
     uint8_t frame;
       if(button_0_state == 0)
       {
-        mouth->trail_data =  &sine_table[0];
-        Serial.println("bar mouth");
+        //mouth->trail_data =  &sine_table[0];
+        //Serial.println("bar mouth");
       }
       else
       {
-        mouth->trail_data =  &gauss_dist_array[0];
-        Serial.println("coffee mouth");
+        //mouth->trail_data =  &gauss_dist_array[0];
+        //Serial.println("coffee mouth");
       }
 
       if(button_1_state == 0)
       {
         frame = 0;
-        Serial.println("b1 =0, ");
+        mouth->trail_data =  &gauss_dist_array[0];
+        Serial.println("b1 =0, COFFEE");
       }
       else
       {
         frame = 1;
-        Serial.println("b1 =1, ");
+        //mouth->trail_data =  &sine_table[0];
+        
+        mouth->trail_data =  &all_led_on_full[0];
+        Serial.println("b1 =1, MR ");
       }
 
       set_matrix_leds(frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
