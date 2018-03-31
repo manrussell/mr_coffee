@@ -94,7 +94,7 @@
 //#define DO_MATRIX_DEBUG
 
 /* PRINT_MATRIXVALUE(new_matrix_peak_val); */
-//#define DO_PRINT_MATRIXVALUE 
+#define DO_PRINT_MATRIXVALUE 
 
 /* DO_PRINT_AUTOGAIN_VALS: prints adc-val x lowest_dcoffset x hoghest_input_read */
 //#define DO_PRINT_AUTOGAIN_VALS
