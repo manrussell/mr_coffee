@@ -304,10 +304,10 @@ ISR(TIMER1_OVF_vect)
   
   void button_0_func()
   {
-    //switch between sine and gauss
+    //alternate face type
     button_0_count++;
     button_0_count %= BUTTON_ZERO_MODES;
-    //alternate face type
+    
 
   }
 
@@ -407,110 +407,82 @@ void loop()
       // set clear not used
       // 
       
-      // button machine
-      // 1 = basic gauss
-      // 2 = basic sine
-      // 3 = coffee strobbing // small width
-      // 4 = Mr coffee        // long width
 
-      // stoire button state
+
+      // store button state
       button_state = button_1_count; // capture button state, don't turn off interrupts
       
       switch(button_state)
       {
-        case 0:
+        case 0: 
+
               Serial.println("MR COFFEE bold flash");
               if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
               {
                 //show MR
-                frame = 0;  //mr
-                pwmset = 0; //bold pwm
-                mouth = &mouth_sine;
+                frame = 0;            // 'mr' frame
+                pwmset = 0;           // bold pwm set
+                mouth = &mouth_sine;  // update mouth type
+                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255); //all pwm values to max // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
                 
-                //make full brightness
-                //should be pwmset right??? not frame
-                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
-                ledDriver.startPicture(frame, false);
+                ledDriver.startPicture(frame, false);               // draw picture
               }
               else
               {
                 //show coffee 
-                frame = 1;  //coffee
-                pwmset = 0; //bold 
-                mouth = &mouth_sine;
-                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
+                frame = 1;            // 'coffee' frame
+                pwmset = 0;           // bold pwm set
+                mouth = &mouth_sine;  // update mouth type
+                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);  // update frame with pwm set
+                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255);       //all pwm values to max
                 
-                //make full brightness
-                //should be pwmset right??? not frame
-                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
                 ledDriver.startPicture(frame, false);
               }
               break;
               
-          case 1:
+          case 1: 
+          /* MR COFFEE wavy */
               Serial.println("MR COFFEE strobed");
               if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
               {
                 //show MR
-                frame = 0;  //mr
-                pwmset = 0; //bold
-                mouth = &mouth_sine;
+                frame = 0;            // 'mr' frame
+                pwmset = 0;           // bold pwm set
+                mouth = &mouth_sine;  // update mouth type
+                
                 ledDriver.startPicture(frame, false);
               }
               else
               {
                 //show coffee 
-                frame = 1;  //coffee
-                pwmset = 1; //strobe
-                mouth = &mouth_gauss;
-                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
+                frame = 1;            // 'coffee' frame
+                pwmset = 1;           // wavy pwmset
+                mouth = &mouth_gauss; // update mouth type
+                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);  // update frame with pwm set
                 
-                set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
-                set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
-                
-                //clear RHS then write new values
-                set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
-                set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
+                set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,          mouth, LHS);
+                set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,    mouth, LHS);
+                set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,       mouth, RHS);
+                set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY, mouth, RHS);
               }
               break;
                
-        case 2:
+        case 2: 
+        /* knight rider */
               Serial.println("bars");
-              frame = 2; //bars
-              pwmset = 1; //bars
-              mouth = &mouth_gauss;
-                 
-              //change mouth type
-              ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
+              frame = 2;              // 'all on' frame
+              pwmset = 1;             // wavy pwmset
+              mouth = &mouth_gauss;   // update mouth type
+              ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // update frame with pwm set // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
   
-              set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
-              set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
-              
-              //clear RHS then write new values
-              set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
-              set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
-              break;
-  /*
-        case 3:
-              Serial.println("Coffee strobe");
-              frame = 1;  //
-              pwmset = 1;
-              mouth = &mouth_gauss;
-              //mouth->trail_data =  &gauss_dist_array[0];
-              
-                //ledDriver.setBlinkAndPwmSetAll(frame, false, 0);
-                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
-  
-              set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
-              set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
-              
-              //clear RHS then write new values
-              set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
-              set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
-              break;
-            */    
+              set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,          mouth, LHS);
+              set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,    mouth, LHS);
+              set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,       mouth, RHS);
+              set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY, mouth, RHS);
+              break;   
         default:
               Serial.println("default button_state");
+              
       } // end of switch(button_state)
       
       old_matrix_peak_val = new_matrix_peak_val;
