@@ -69,11 +69,12 @@ filter
  * 
 ***************/
 //void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size );
-void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs, uint8_t text );
+void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs );
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z );
 //void make_sine_table(uint16_t trail_width, uint16_t table, uint8_t brightness);
 void make_sine_table( mouth_data *mouthD, uint8_t brightness);
-void button_0_func();
+void button_0_func(); // button isr
+void button_1_func(); // button isr
 
 using namespace lr;
 AS1130 ledDriver;
@@ -85,6 +86,7 @@ AS1130 ledDriver;
 ***************/
 
 static volatile uint8_t adc_state = SAMPLE_ADC_DATA;             // either SAMPLE_ADC_DATA or PROCESS_ADC_DATA
+static int buttonState = 0;         // variable for reading the pushbutton status
 
 // auto gain
 static uint16_t lowest_dcoffset = 1024;
@@ -103,9 +105,6 @@ static uint16_t highest_input_read = 250;
     4, 8, 8, 4, 4, 4, 4, 4
   };
 #endif
-
-static int buttonState = 0;         // variable for reading the pushbutton status
-
 
     /***************
      * Matrix
@@ -163,7 +162,7 @@ static uint8_t sine_table[24] = {0};
 static  mouth_data mouth_sine = 
   {
     .trail_start_point  = 12, //wher in array to start looping from, was 0
-    .trail_width        = 3,     // width of bars excluding the peak value
+    .trail_width        = 6,     // width of bars excluding the peak value
     .array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
     .trail_data         = &sine_table[0],
@@ -216,22 +215,22 @@ void setup()
 
   /* make up sine table */
   // void make_sine_table(uint16_t trail_width, moutn *mouth, uint8_t brightness)
-  make_sine_table( mouth, 255);
+  make_sine_table( &mouth_sine, 255);
   
   /*  Set-up everything.
    *  Ram config 1, with 36 frames and 1 pwm set, we require 1 frame (all leds on) and 1 pwm set ( which we alter) 
    * 
   */  
   ledDriver.setRamConfiguration(AS1130::RamConfiguration3); //  ramconf 1 = 36 frames and 1 pwmset  // ram cofig 5 = 5 pwm sets and 12 frames
-  
-  ledDriver.setOnOffFrame24x5(0, COFFEEFrame, 0); // writes the coffee on the mouth piece
-  ledDriver.setOnOffFrame24x5(1, MRFrame, 0); // writes the mr
-  ledDriver.setOnOffFrame24x5(2, AllOnFrame, 2); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
+
+  ledDriver.setOnOffFrame24x5(0, MRFrame, 0); // writes the mr
+  ledDriver.setOnOffFrame24x5(1, COFFEEFrame, 0); // writes the coffee on the mouth piece
+  ledDriver.setOnOffFrame24x5(2, AllOnFrame, 1); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
 
   
   // Set-up a blink&PWM set with values for all LEDs.
   ledDriver.setBlinkAndPwmSetAll(0, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
-  ledDriver.setBlinkAndPwmSetAll(2, false, BACKGROUND_PWM_VAL); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
+  ledDriver.setBlinkAndPwmSetAll(1, false, BACKGROUND_PWM_VAL); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
   
   ledDriver.setCurrentSource(AS1130::Current15mA);
   ledDriver.setScanLimit(AS1130::ScanLimitFull);
@@ -299,25 +298,24 @@ ISR(TIMER1_OVF_vect)
 }
 
 #if DO_BUTTON_INTERRUPT
-//effectively my isr for button press
-  uint8_t button_0_state = 0;
-  uint8_t button_1_state = 0;
+// isr for button press
+  uint8_t button_0_count = 0;
+  uint8_t button_1_count = 0;
   
   void button_0_func()
   {
     //switch between sine and gauss
-    button_0_state++;
-    button_0_state %= 2;
+    button_0_count++;
+    button_0_count %= BUTTON_ZERO_MODES;
     //alternate face type
 
   }
 
-
+// isr for button 
   void button_1_func()
   {
-
-    button_1_state++;
-    button_1_state %= 4;
+    button_1_count++;
+    button_1_count %= BUTTON_ONE_MODES;
   }
     
 #endif
@@ -329,8 +327,12 @@ void loop()
   static uint16_t new_matrix_peak_val = 0;
   static uint16_t old_matrix_peak_val = 1;
   static uint8_t  max_map_val = 11; 
-  
   static int16_t adcVals = {0};
+    uint8_t frame=0;
+    uint8_t pwmset = 0;
+    uint8_t button_state = 0;
+  
+
   
 
   /* Process Data */
@@ -410,80 +412,109 @@ void loop()
       // 2 = basic sine
       // 3 = coffee strobbing // small width
       // 4 = Mr coffee        // long width
-    uint8_t frame=0;
 
-     // if(button_0_state == 0)
-     uint8_t button_state = button_1_state; // capture button state
-
-    switch(button_state)
-    {
-      case 0:
-            Serial.println("Coffee strobe");
-            frame = 0;
-              //ledDriver.setBlinkAndPwmSetAll(frame, false, 0);
-              ledDriver.setOnOffFrame24x5(0, COFFEEFrame, 0);
-            break;
+      // stoire button state
+      button_state = button_1_count; // capture button state, don't turn off interrupts
       
-      case 1:
-            Serial.println("MR COFFEE");
-            if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
-            {
-              //show MR
-              frame = 1;
-              //make full brightness
-              ledDriver.setBlinkAndPwmSetAll(frame, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
-              ledDriver.startPicture(frame, false);
-            }
-            else
-            {
-              //show coffee 
-              frame = 0;
-              //make full brightness
-              ledDriver.setBlinkAndPwmSetAll(frame, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
-              ledDriver.startPicture(frame, false);
-            }
-            break;
-            
-
-        case 2:
-            Serial.println("strobe MR COFFEE");
-            if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
-            {
-              //show MR
-              frame = 1;
-              ledDriver.startPicture(frame, false);
-            }
-            else
-            {
-              //show coffee 
-              frame = 0;
-              ledDriver.startPicture(frame, false);
-            }
-            break; 
-      case 3:
-            Serial.println("bar");
-            frame = 0; //why 0?
-            mouth->trail_data =  &gauss_dist_array[0];
-            //change mouth type
-            ledDriver.setOnOffFrame24x5(frame, AllOnFrame, frame); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
-            break;
+      switch(button_state)
+      {
+        case 0:
+              Serial.println("MR COFFEE bold flash");
+              if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
+              {
+                //show MR
+                frame = 0;  //mr
+                pwmset = 0; //bold pwm
+                mouth = &mouth_sine;
+                
+                //make full brightness
+                //should be pwmset right??? not frame
+                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
+                ledDriver.startPicture(frame, false);
+              }
+              else
+              {
+                //show coffee 
+                frame = 1;  //coffee
+                pwmset = 0; //bold 
+                mouth = &mouth_sine;
+                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
+                
+                //make full brightness
+                //should be pwmset right??? not frame
+                ledDriver.setBlinkAndPwmSetAll(pwmset, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
+                ledDriver.startPicture(frame, false);
+              }
+              break;
               
-      default:
-            Serial.println("default button_state");
-    }
-
-
-     
-     
-      set_matrix_leds(frame, old_matrix_peak_val, CLEAR,        mouth, LHS, button_state);
-      set_matrix_leds(frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS, button_state);
-      
-      //clear RHS then write new values
-      set_matrix_leds(frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS, button_state);
-      set_matrix_leds(frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS, button_state);
+          case 1:
+              Serial.println("MR COFFEE strobed");
+              if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
+              {
+                //show MR
+                frame = 0;  //mr
+                pwmset = 0; //bold
+                mouth = &mouth_sine;
+                ledDriver.startPicture(frame, false);
+              }
+              else
+              {
+                //show coffee 
+                frame = 1;  //coffee
+                pwmset = 1; //strobe
+                mouth = &mouth_gauss;
+                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
+                
+                set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
+                set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
+                
+                //clear RHS then write new values
+                set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
+                set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
+              }
+              break;
+               
+        case 2:
+              Serial.println("bars");
+              frame = 2; //bars
+              pwmset = 1; //bars
+              mouth = &mouth_gauss;
+                 
+              //change mouth type
+              ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
+  
+              set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
+              set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
+              
+              //clear RHS then write new values
+              set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
+              set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
+              break;
+  /*
+        case 3:
+              Serial.println("Coffee strobe");
+              frame = 1;  //
+              pwmset = 1;
+              mouth = &mouth_gauss;
+              //mouth->trail_data =  &gauss_dist_array[0];
+              
+                //ledDriver.setBlinkAndPwmSetAll(frame, false, 0);
+                ledDriver.setOnOffFrame24x5(frame, COFFEEFrame, pwmset);
+  
+              set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,        mouth, LHS);
+              set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,  mouth, LHS);
+              
+              //clear RHS then write new values
+              set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,        mouth, RHS);
+              set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY,  mouth, RHS);
+              break;
+            */    
+        default:
+              Serial.println("default button_state");
+      } // end of switch(button_state)
       
       old_matrix_peak_val = new_matrix_peak_val;
-    }
+    } // end of update matrix
 
     /* reset state ready for next interrupt */
     adc_state = SAMPLE_ADC_DATA;
@@ -492,7 +523,7 @@ void loop()
 } /* end of main loop */
 
 
-void set_matrix_leds_bender(uint8_t frame, uint8_t new_row_val, uint8_t old_row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs )
+void set_matrix_leds_bender(uint8_t pwmset, uint8_t new_row_val, uint8_t old_row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs )
 {
   /*
 uint8_t col=0;
@@ -522,7 +553,7 @@ uint8_t i=0;
 
 
 
-void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs, uint8_t text )
+void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs)
 {
   uint8_t col=0;
   uint8_t i=0;
@@ -561,8 +592,6 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *
     data = mouthPiece->trail_data;
   }
 
-  //Serial.print("frame = "); Serial.println(frame);
-  // 
   for(col=0; col<=4; col++)
   {
     // centre of array is trail_pattern_array[ 12 ]
@@ -570,8 +599,8 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *
     //
     
     // centre trail - bighest
-    // (frame '0' , led index, vlaue)
-    //ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val, col), trail_pattern_array[ pattern_start_point ] );
+    // (pwmset '0' , led index, vlaue)
+    //ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val, col), trail_pattern_array[ pattern_start_point ] );
     MATRIX_DEBUG("LHS trail ");
     
     // LHS trail, if (row_val >= 1 ) ok LHS trail
@@ -583,8 +612,8 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *
           // this was [ pattern_start_point-i ] but 
           point = (mouthPiece->trail_start_point-i ) % mod;
           
-          ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val-i, col), data[ point ] );
-          
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val-i, col), data[ point ] );
+          //Serial.print("LHS data[ point ] = "); Serial.println(data[ point ]);
         }
     }
     MATRIX_DEBUG("");
@@ -597,9 +626,8 @@ void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *
         if (row_val <= (rhsvalue-i) )
         {
           point = (mouthPiece->trail_start_point+i ) % mod;
-          ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val+i, col), data[ point ] );
-          
-          
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val+i, col), data[ point ] );
+          //Serial.print("RHS data[ point ] = "); Serial.println(data[ point ]);
         }
     }
     MATRIX_DEBUG("");

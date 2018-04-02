@@ -65,6 +65,9 @@
 //better description here ... 
 #define GAUSS_DIST_WIDTH  3 // one half - exclude the max value eg 1,2,3,(X),3,2,1
 
+#define BUTTON_ZERO_MODES 2
+#define BUTTON_ONE_MODES  3
+
 /*
  * Auto gain
  * 
@@ -94,7 +97,7 @@
 //#define DO_MATRIX_DEBUG
 
 /* PRINT_MATRIXVALUE(new_matrix_peak_val); */
-#define DO_PRINT_MATRIXVALUE 
+//#define DO_PRINT_MATRIXVALUE 
 
 /* DO_PRINT_AUTOGAIN_VALS: prints adc-val x lowest_dcoffset x hoghest_input_read */
 //#define DO_PRINT_AUTOGAIN_VALS
