@@ -68,8 +68,9 @@ filter
  * Prototypes
  * 
 ***************/
-//void set_matrix_leds(uint8_t frame, uint8_t row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs, uint8_t pattern_width, uint8_t pattern_start_point, uint8_t array_size );
 void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs );
+void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs);
+
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z );
 //void make_sine_table(uint16_t trail_width, uint16_t table, uint8_t brightness);
 void make_sine_table( mouth_data *mouthD, uint8_t brightness);
@@ -140,15 +141,15 @@ const uint8_t background_array[24] = {BACKGROUND_PWM_VAL};
 const uint8_t CENTRE_OF_GAUSS_DIST = 0; // same as max gauss 
 
 //const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,0,0,0,0,0,0,0};  //uint8_t GAUSS_DIST_WIDTH  = 3;
-const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,255,255,255,255,255,255,255,255,255,255,255,255};
+const uint8_t gauss_dist_array[] =  {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,0,0,0,0,0,0,0};
 //uint8_t gauss_dist_array[] = {255,154,34,3,0,0,0,0,0,0,0,0,0};  //uint8_t GAUSS_DIST_WIDTH  = 3;
 //uint8_t gauss_dist_array[] = {0,0,0,1,2,4,7,11,15,20,24,27,28,27,24,20,15,11,7,4,2,1,0,0,0}; // uint8_t GAUSS_DIST_WIDTH  = 9;
 
 
 static  mouth_data mouth_gauss = 
   {
-    .trail_start_point  = 12,
-    .trail_width        = 3, //3, // width of bars excluding the peak value
+    .trail_start_point  = 12,// peak brightness
+    .trail_width        = 3, // width of bars excluding the peak value
     .array_length       = 24,    // loop length was smaller...!
     .trail_clear        = &background_array[0],
     .trail_data         = &gauss_dist_array[0],
@@ -369,11 +370,22 @@ void loop()
     #ifdef DO_PRINT_AUTOGAIN_DISPLAY 
       print_autogain_display( adc_val, lowest_dcoffset, highest_input_read ); 
     #endif
+
+    // store button state
+    button_state = button_1_count; // capture button state, don't turn off interrupts
     
     // Whatever the relative values are 
     //
-    adcVals = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
-
+    if(button_state != 4)
+    {
+      adcVals = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
+    }
+    else
+    {
+      //bender mouth
+      adcVals = map( adc_val, lowest_dcoffset, highest_input_read , 0, 2);  
+      Serial.print("adcVals = "); Serial.println(adcVals);
+    }
     // no lowpass
     new_matrix_peak_val = adcVals;
 
@@ -406,11 +418,6 @@ void loop()
       // instead put in array_length for pulse mouth 
       // set clear not used
       // 
-      
-
-
-      // store button state
-      button_state = button_1_count; // capture button state, don't turn off interrupts
       
       switch(button_state)
       {
@@ -468,18 +475,50 @@ void loop()
               break;
                
         case 2: 
+        /* gauss inwards to centre sweep */
+              Serial.println("gauss sweeper");
+              frame = 2;              // 'all on' frame
+              pwmset = 1;             // wavy pwmset
+              mouth = &mouth_gauss;   // update mouth type
+              ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // update frame with pwm set // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
+  
+              static uint8_t cnt =0;
+              cnt++;
+              cnt %= 12;
+              static uint8_t offset = 12;
+              offset += cnt;
+              offset %= 24;
+  
+              set_matrix_leds(pwmset, frame, cnt-1, CLEAR,          mouth, LHS);
+              set_matrix_leds(pwmset, frame, cnt, WRITE_ARRAY,      mouth, LHS);
+              set_matrix_leds(pwmset, frame, 24-cnt-1, CLEAR,       mouth, RHS);
+              set_matrix_leds(pwmset, frame, 24-cnt, WRITE_ARRAY, mouth, RHS);
+              break;  
+        case 3: 
         /* knight rider */
               Serial.println("bars");
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
               ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // update frame with pwm set // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
-  
+              
               set_matrix_leds(pwmset, frame, old_matrix_peak_val, CLEAR,          mouth, LHS);
               set_matrix_leds(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,    mouth, LHS);
               set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,       mouth, RHS);
               set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY, mouth, RHS);
-              break;   
+              break;  
+        case 4: 
+        /* Bender */
+              Serial.println("bender");
+              frame = 2;              // 'all on' frame
+              pwmset = 1;             // wavy pwmset
+              mouth = &mouth_gauss;   // update mouth type
+              ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // update frame with pwm set // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
+              
+              set_matrix_leds_bender(pwmset, frame, old_matrix_peak_val, CLEAR,          mouth, LHS);
+              set_matrix_leds_bender(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,    mouth, LHS);
+              break;  
+
         default:
               Serial.println("default button_state");
               
@@ -495,38 +534,86 @@ void loop()
 } /* end of main loop */
 
 
-void set_matrix_leds_bender(uint8_t pwmset, uint8_t new_row_val, uint8_t old_row_val, uint8_t set_clear, uint8_t *trail_pattern_array, uint8_t lhs_or_rhs )
+void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs)
 {
-  /*
-uint8_t col=0;
-uint8_t i=0;
-  for(col=0; col<=4; col++)
+  uint8_t col=0;
+  uint8_t i=0;
+  uint8_t point =12;
+  uint8_t *data = NULL;
+  //Serial.print("\t row_val=\t"); Serial.println(row_val);
+ 
+  if(clear)
   {
-  // do teeth
-    for(i=0; i<=pattern_width; i++)
+    data = mouthPiece->trail_clear;
+  }
+  else
+  {
+    data = mouthPiece->trail_data;
+  }
+
+  for(col=4; col<24; col +=4 )
+  {
+    // do teeth
+    //Serial.print("col=\t"); Serial.print(col); 
+    for(i=0; i<5; i++)
     {
-        if (row_val >= lhsvalue+i) 
-        {
-          // pattern start pointer must not go negative or greter than array size - pass in array size?? or have all same size?
-          // this was [ pattern_start_point-i ] but 
-          point = (pattern_start_point-i ) % array_size;
-          
-          ledDriver.setPwmValue(frame, ledDriver.getLedIndex24x5(row_val-i, col), trail_pattern_array[ point ] );
-          MATRIX_DEBUG("LHS trail ");
-        }
+      ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(col,i), data[point]);
     }
   }
-  
-  
-  //draw teeth
-  
-  */
+        
+  switch(row_val)
+  {
+    case 0: 
+    // mouth closed
+        for(i=0; i<24; i++)
+        {
+          // middle lip
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,row_val+2), data[point]);
+        }
+        break;
+        
+    case 1: 
+    // mouth mid open
+        for(i=0; i<24; i++)
+        {
+          // top lip
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,2-row_val), data[point]);
+        }
+        
+        for(i=0; i<24; i++)
+        {
+          //bottom lippock 
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,row_val+2), data[point]);
+        }
+        break;
+        
+    case 2: 
+    // mouth open
+        for(i=0; i<24; i++)
+        {
+          // top lip
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,2-row_val), data[point]);
+        }
+        
+        for(i=0; i<24; i++)
+        {
+          //bottom lippock 
+          ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,row_val+2), data[point]);
+        }
+        break;
+
+  }
+    //Serial.println();  
 }
 
 
 
 void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs)
 {
+  /*
+   * Error if row_val goes higher than 11/12 still prints the LHS trail
+   * Error if row_val goes higher than 23 RHS trail goes over 9/10/11 
+  */
   uint8_t col=0;
   uint8_t i=0;
   uint8_t lhsvalue = 0;
@@ -566,6 +653,7 @@ void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t cle
 
   for(col=0; col<=4; col++)
   {
+//Serial.print("col=\t"); Serial.print(col); Serial.print("\t row_val=\t"); Serial.println(row_val);
     // centre of array is trail_pattern_array[ 12 ]
     // therefore row_val should be trail_pattern_array[12] 
     //
@@ -575,7 +663,7 @@ void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t cle
     //ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val, col), trail_pattern_array[ pattern_start_point ] );
     MATRIX_DEBUG("LHS trail ");
     
-    // LHS trail, if (row_val >= 1 ) ok LHS trail
+    // LHS trail and peak value, if (row_val >= 1 ) ok LHS trail
     for(i=0; i<=mouthPiece->trail_width; i++)
     {
         if (row_val >= lhsvalue+i) 
@@ -585,7 +673,8 @@ void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t cle
           point = (mouthPiece->trail_start_point-i ) % mod;
           
           ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val-i, col), data[ point ] );
-          //Serial.print("LHS data[ point ] = "); Serial.println(data[ point ]);
+//Serial.print(" LHS data[ "); Serial.print(point);  Serial.print(" ] = "); Serial.print(data[ point ]); Serial.print("\ti="); Serial.println(i);
+
         }
     }
     MATRIX_DEBUG("");
@@ -599,25 +688,19 @@ void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t cle
         {
           point = (mouthPiece->trail_start_point+i ) % mod;
           ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(row_val+i, col), data[ point ] );
-          //Serial.print("RHS data[ point ] = "); Serial.println(data[ point ]);
+//Serial.print(" RHS data[ "); Serial.print(point);  Serial.print(" ] = "); Serial.print(data[ point ]); Serial.print("\ti="); Serial.println(i);
         }
     }
     MATRIX_DEBUG("");
   }
   
-  // #ifdef COFFEE_BACKPLATE
-    // ledDriver.setOnOffFrame24x5(0, COFFEEFrame, 0); // writes the coffee on the mouth piece
-  // #else
-    // ledDriver.setOnOffFrame24x5(0, AllOnFrame, 0); // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
-  // #endif
-  // MRFrame
-
   //write picture back
   ledDriver.startPicture(frame, false);
   
-  
+//delay(500);
   MATRIX_DEBUG("Leave set_matrix_leds()");
 }
+
 
 /*
  * 

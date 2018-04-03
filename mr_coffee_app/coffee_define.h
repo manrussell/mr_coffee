@@ -65,8 +65,9 @@
 //better description here ... 
 #define GAUSS_DIST_WIDTH  3 // one half - exclude the max value eg 1,2,3,(X),3,2,1
 
+//this is modes +1 because this value is modulous'd
 #define BUTTON_ZERO_MODES 2
-#define BUTTON_ONE_MODES  3
+#define BUTTON_ONE_MODES  5
 
 /*
  * Auto gain
