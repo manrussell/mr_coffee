@@ -1,4 +1,4 @@
-// HARDARE  -> PINS:
+// HARDARE  -> PINS (Arduino Uno / pro trinket )
 // ================
 
 //  Analogue:
@@ -10,9 +10,9 @@
 //  Digital:
 //  =======
 // pin output to matrix reset -> arduino pin d4
-// button interrupt_0   d2 // -> there is no D2 on protrinket!! just uno
+// button interrupt_0   d2 // -> there is no D2 on protrinket!! just uno so use 'pin-change interrupt' see http://playground.arduino.cc/Main/PinChangeInterrupt
 // button interrupt_1   d3
-// mosfet to clear peak detector -> arduino d7
+// mosfet to clear peak detector -> arduino d7 - now removed
 // speaker -> arduino
 // power -> arduino 5V to  matrix
 // power -> arduino 3.3V to .. nothing 
@@ -38,18 +38,17 @@
  * 
  * Software overview :
  * =-=-=-=-=-=-=-=-=-=
+ * Basically  a Foreground/background architecture
+ * 
  * Uses a timer ISR to trigger adc read. ( ISR_FREQ_HZ )
  * 
  * this value is mapped to a value 0-11,
- * this value is
+ * this value is 
  * 
  * adc_state .. SAMPLE_ADC_DATA | PROCESS_ADC_DATA 
  * 
  * 
- * 
- * 
- * 
-back ground pwm variable -knob
+
 function to make up the sine/gauss tables; knob for decay, knob for brightness
 
 rename lowest_dcoffset -> auto_gain_lowest
@@ -191,12 +190,7 @@ static mouth_data *mouth = &mouth_gauss;
 ***************/
 
 void setup() 
-{
-  #ifdef USE_MOSFET 
-    pinMode(MOSFET_GATE_PIN, OUTPUT);
-  #endif
-  
-  
+{  
   Wire.begin();
   Wire.setClock( I2C_SPEED );
   
@@ -215,7 +209,6 @@ void setup()
   digitalWrite(MATRIX_RESETPIN, HIGH);
   
   SERIALPRINT(F("Initialize chip"));
-
   
   // Check if the chip is addressable.
   
@@ -230,7 +223,6 @@ void setup()
   
   /*  Set-up everything.
    *  Ram config 1, with 36 frames and 1 pwm set, we require 1 frame (all leds on) and 1 pwm set ( which we alter) 
-   * 
   */  
   ledDriver.setRamConfiguration(AS1130::RamConfiguration3); //  ramconf 1 = 36 frames and 1 pwmset  // ram cofig 5 = 5 pwm sets and 12 frames
 
@@ -286,10 +278,6 @@ void setup()
     }
   #endif
   
-  #ifdef USE_MOSFET
-    // this switch enables the capacitor in the peak dector circuit so atart collecting data about the mic state
-    digitalWrite(MOSFET_GATE_PIN, LOW);  
-  #endif
 }
 
 
@@ -310,6 +298,7 @@ uint8_t button_1_count = 0;
 // isr for button press
 void button_0_func()
 {
+  // ledDriver.setCurrentSource(AS1130::Current5mA);
   //alternate face type
   button_0_count++;
   button_0_count %= BUTTON_ZERO_MODES;
@@ -333,8 +322,8 @@ void loop()
   static int16_t adcVals = {0};
   uint8_t frame=0;
   uint8_t pwmset = 0;
-  uint8_t button_state = 0;
-  
+  uint8_t button_face_state = 0;
+  uint8_t button_brightness_state = 0;
   
   /* Process Data */
   if( adc_state == PROCESS_ADC_DATA )
@@ -371,10 +360,10 @@ void loop()
     print_autogain_display( adc_val, lowest_dcoffset, highest_input_read ); 
 
     // capture button state, don't turn off interrupts
-    button_state = button_1_count; 
+    button_face_state = button_1_count; 
     
     // map to range
-    if(button_state != 4)
+    if(button_face_state != 4)
     {
       // not bender mouth
       adcVals = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
@@ -384,6 +373,7 @@ void loop()
       //bender mouth
       adcVals = map( adc_val, lowest_dcoffset, highest_input_read , 0, 2);  
     }
+
     
     // no lowpass
     new_matrix_peak_val = adcVals;
@@ -394,7 +384,7 @@ void loop()
     //if(new_matrix_peak_val != old_matrix_peak_val )
     {
       /* Send values to the Matrix 
-        depends on button_state (1)
+        depends on button_face_state (1)
         0) Serial.println("MR COFFEE bold flash");
         1) Serial.println("MR COFFEE strobed");
         2) Serial.println("gauss sweeper");
@@ -403,7 +393,7 @@ void loop()
         5)
       */    
       
-      switch(button_state)
+      switch(button_face_state)
       {
         case 0: 
         /* MR COFFEE BOLD FLASH */
@@ -504,9 +494,9 @@ void loop()
               break;  
 
         default:
-              Serial.println("default button_state");
+              Serial.println("default button_face_state");
               
-      } // end of switch(button_state)
+      } // end of switch(button_face_state)
       
       //capture old value which will be erased next time
       old_matrix_peak_val = new_matrix_peak_val;

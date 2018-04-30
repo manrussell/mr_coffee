@@ -80,9 +80,6 @@
 #define SAMPLE_ADC_DATA   0
 #define PROCESS_ADC_DATA  1
 
-/* -need testing use a mosfet to 'clear' the state of the capacitor */
-//#define USE_MOSFET
-
 /*
  *  Debug macros
 */ 
