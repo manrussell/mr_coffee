@@ -10,8 +10,8 @@
 //  Digital:
 //  =======
 // pin output to matrix reset -> arduino pin d4
-// button interrupt_0   d3
-// button interrupt_1   d2
+// button interrupt_0   d2 // -> there is no D2 on protrinket!! just uno
+// button interrupt_1   d3
 // mosfet to clear peak detector -> arduino d7
 // speaker -> arduino
 // power -> arduino 5V to  matrix
@@ -56,10 +56,27 @@ rename lowest_dcoffset -> auto_gain_lowest
 highest_input_read -> auto_gain_max
 
 filter 
-*/
 
 // analogReference(type) EXTERNAL EXTERNAL: the voltage applied to the AREF pin (0 to 5V only) is used as the reference.
 // could filter signal for smoothing now
+
+for button '0'
+chgange brightness %7
+
+  enum Current : uint8_t {
+    Current0mA  = 0x00, ///< Disable the current source for the LEDs.
+    Current5mA  = 0x2b, ///< Use 5mA as current source for the LEDs.
+    Current10mA = 0x55, ///< Use 10mA as current source for the LEDs.
+    Current15mA = 0x80, ///< Use 15mA as current source for the LEDs.
+    Current20mA = 0xaa, ///< Use 20mA as current source for the LEDs.
+    Current25mA = 0xd5, ///< Use 25mA as current source for the LEDs.
+    Current30mA = 0xff ///< Use 30mA as current source for the LEDs.
+  };
+
+
+*/
+
+
 
 #include "LRAS1130.h"
 #include "coffee_define.h"
@@ -69,11 +86,11 @@ filter
  * 
 ***************/
 void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs );
-void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs);
+void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece);
 
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z );
-//void make_sine_table(uint16_t trail_width, uint16_t table, uint8_t brightness);
 void make_sine_table( mouth_data *mouthD, uint8_t brightness);
+
 void button_0_func(); // button isr
 void button_1_func(); // button isr
 
@@ -137,13 +154,8 @@ const uint8_t background_array[24] = {BACKGROUND_PWM_VAL};
     /***************
      * Matrix Gauss
     ***************/
-    
-const uint8_t CENTRE_OF_GAUSS_DIST = 0; // same as max gauss 
-
-//const uint8_t gauss_dist_array[] = {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,0,0,0,0,0,0,0};  //uint8_t GAUSS_DIST_WIDTH  = 3;
-const uint8_t gauss_dist_array[] =  {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,0,0,0,0,0,0,0};
-//uint8_t gauss_dist_array[] = {255,154,34,3,0,0,0,0,0,0,0,0,0};  //uint8_t GAUSS_DIST_WIDTH  = 3;
-//uint8_t gauss_dist_array[] = {0,0,0,1,2,4,7,11,15,20,24,27,28,27,24,20,15,11,7,4,2,1,0,0,0}; // uint8_t GAUSS_DIST_WIDTH  = 9;
+const uint8_t gauss_dist_array[] =  {0,0,0,0,0,0,0,0,0,3,34,154,255,154,34,3,0,0,0,0,0,0,0,0,0};  // .trail_width = 3
+//uint8_t gauss_dist_array[] = {0,0,0,1,2,4,7,11,15,20,24,27,28,27,24,20,15,11,7,4,2,1,0,0,0};    // .trail_width = 9
 
 
 static  mouth_data mouth_gauss = 
@@ -214,8 +226,6 @@ void setup()
     return;
   }
 
-  /* make up sine table */
-  // void make_sine_table(uint16_t trail_width, moutn *mouth, uint8_t brightness)
   make_sine_table( &mouth_sine, 255);
   
   /*  Set-up everything.
@@ -233,7 +243,7 @@ void setup()
   ledDriver.setBlinkAndPwmSetAll(0, false, 255); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
   ledDriver.setBlinkAndPwmSetAll(1, false, BACKGROUND_PWM_VAL); // void setBlinkAndPwmSetAll(uint8_t setIndex, bool doesBlink = false, uint8_t pwmValue = 0xff);
   
-  ledDriver.setCurrentSource(AS1130::Current15mA);
+  ledDriver.setCurrentSource(AS1130::Current5mA);
   ledDriver.setScanLimit(AS1130::ScanLimitFull);
   ledDriver.startPicture(0, false); // startPicture(uint8_t frameIndex, bool blinkAll = false);
   
@@ -248,13 +258,12 @@ void setup()
   TCCR1B |= (1 << CS12);    // 256 prescaler 
   TIMSK1 |= (1 << TOIE1);   // enable timer overflow interrupt
 
-  #if DO_BUTTON_INTERRUPT
-    pinMode(BUTTON_PIN_0, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_0), button_0_func, FALLING );
-    
-    pinMode(BUTTON_PIN_1, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_1), button_1_func, FALLING );
-  #endif
+  // button interrupts
+  pinMode(BUTTON_PIN_0, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_0), button_0_func, FALLING );
+  
+  pinMode(BUTTON_PIN_1, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN_1), button_1_func, FALLING );
 
   interrupts();             // enable all interrupts
 
@@ -276,10 +285,7 @@ void setup()
       noTone(8);
     }
   #endif
-
-
-  //pinMode(A0,INPUT_PULLUP);
-
+  
   #ifdef USE_MOSFET
     // this switch enables the capacitor in the peak dector circuit so atart collecting data about the mic state
     digitalWrite(MOSFET_GATE_PIN, LOW);  
@@ -298,29 +304,25 @@ ISR(TIMER1_OVF_vect)
   TCNT1 = TIMER1_COUNTER;   // reload timer
 }
 
-#if DO_BUTTON_INTERRUPT
-// isr for button press
-  uint8_t button_0_count = 0;
-  uint8_t button_1_count = 0;
+uint8_t button_0_count = 0;
+uint8_t button_1_count = 0;
   
-  void button_0_func()
-  {
-    //alternate face type
-    button_0_count++;
-    button_0_count %= BUTTON_ZERO_MODES;
-    
+// isr for button press
+void button_0_func()
+{
+  //alternate face type
+  button_0_count++;
+  button_0_count %= BUTTON_ZERO_MODES;
+  
 
-  }
+}
 
-// isr for button 
-  void button_1_func()
-  {
-    button_1_count++;
-    button_1_count %= BUTTON_ONE_MODES;
-  }
-    
-#endif
-
+// isr for button 1
+void button_1_func()
+{
+  button_1_count++;
+  button_1_count %= BUTTON_ONE_MODES;
+}
 
 
 void loop() 
@@ -329,13 +331,11 @@ void loop()
   static uint16_t old_matrix_peak_val = 1;
   static uint8_t  max_map_val = 11; 
   static int16_t adcVals = {0};
-    uint8_t frame=0;
-    uint8_t pwmset = 0;
-    uint8_t button_state = 0;
+  uint8_t frame=0;
+  uint8_t pwmset = 0;
+  uint8_t button_state = 0;
   
-
   
-
   /* Process Data */
   if( adc_state == PROCESS_ADC_DATA )
   {   
@@ -367,25 +367,24 @@ void loop()
     
     PRINT_AUTOGAIN(adc_val, lowest_dcoffset, highest_input_read);
     
-    #ifdef DO_PRINT_AUTOGAIN_DISPLAY 
-      print_autogain_display( adc_val, lowest_dcoffset, highest_input_read ); 
-    #endif
+    //optional serial print out, set DO_PRINT_AUTOGAIN_DISPLAY
+    print_autogain_display( adc_val, lowest_dcoffset, highest_input_read ); 
 
-    // store button state
-    button_state = button_1_count; // capture button state, don't turn off interrupts
+    // capture button state, don't turn off interrupts
+    button_state = button_1_count; 
     
-    // Whatever the relative values are 
-    //
+    // map to range
     if(button_state != 4)
     {
+      // not bender mouth
       adcVals = map( adc_val, lowest_dcoffset, highest_input_read , max_map_val, 0);   
     }
     else
     {
       //bender mouth
       adcVals = map( adc_val, lowest_dcoffset, highest_input_read , 0, 2);  
-      Serial.print("adcVals = "); Serial.println(adcVals);
     }
+    
     // no lowpass
     new_matrix_peak_val = adcVals;
 
@@ -394,36 +393,21 @@ void loop()
     /*  */
     //if(new_matrix_peak_val != old_matrix_peak_val )
     {
-        #ifndef PULSE_MOUTH
-          static uint8_t trail_start_point = mouth->trail_start_point;
-        #else
-          static uint8_t trail_start_point = mouth->trail_start_point;
-          trail_start_point = mouth->trail_start_point++;
-        #endif
-        
-        //uint8_t trail_width   = mouth.trail_width;
-        //uint8_t *trail_clear  = mouth.trail_clear;
-        //uint8_t *trail_data   = mouth.trail_data;
-        //uint8_t array_length  = mouth.array_length; // mod this 
-      
-
-      #ifdef PULSE_MOUTH
-         //trail_start_point = mouth.trail_start_point++;
-      #endif
-
-      /* Send values to the Matrix */
-      
-      // set_matrix_leds( frame,  row_val,  set_clear,  *trail_pattern_array,  lhs_or_rhs,  pattern_trail_width,  pattern_start_point, array_size )
-      // removed made change so that LHS and RHS have the same trail, but 
-      // instead put in array_length for pulse mouth 
-      // set clear not used
-      // 
+      /* Send values to the Matrix 
+        depends on button_state (1)
+        0) Serial.println("MR COFFEE bold flash");
+        1) Serial.println("MR COFFEE strobed");
+        2) Serial.println("gauss sweeper");
+        3) Serial.println("bars");
+        4) Serial.println("bender");
+        5)
+      */    
       
       switch(button_state)
       {
         case 0: 
-
-              Serial.println("MR COFFEE bold flash");
+        /* MR COFFEE BOLD FLASH */
+              //Serial.println("MR COFFEE bold flash");
               if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
               {
                 //show MR
@@ -449,7 +433,7 @@ void loop()
               
           case 1: 
           /* MR COFFEE wavy */
-              Serial.println("MR COFFEE strobed");
+              //Serial.println("MR COFFEE wavy");
               if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
               {
                 //show MR
@@ -476,7 +460,7 @@ void loop()
                
         case 2: 
         /* gauss inwards to centre sweep */
-              Serial.println("gauss sweeper");
+              //Serial.println("gauss sweeper");
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
@@ -494,9 +478,9 @@ void loop()
               set_matrix_leds(pwmset, frame, 24-cnt-1, CLEAR,       mouth, RHS);
               set_matrix_leds(pwmset, frame, 24-cnt, WRITE_ARRAY, mouth, RHS);
               break;  
-        case 3: 
+        case 3:
         /* knight rider */
-              Serial.println("bars");
+              //Serial.println("bars");
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
@@ -507,16 +491,16 @@ void loop()
               set_matrix_leds(pwmset, frame, 24-old_matrix_peak_val, CLEAR,       mouth, RHS);
               set_matrix_leds(pwmset, frame, 24-new_matrix_peak_val, WRITE_ARRAY, mouth, RHS);
               break;  
-        case 4: 
+        case 4:
         /* Bender */
-              Serial.println("bender");
+              //Serial.println("bender");
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
               ledDriver.setOnOffFrame24x5(frame, AllOnFrame, pwmset); // update frame with pwm set // void setOnOffFrame24x5(uint8_t frameIndex, const uint8_t *data, uint8_t pwmSetIndex = 0);
-              
-              set_matrix_leds_bender(pwmset, frame, old_matrix_peak_val, CLEAR,          mouth, LHS);
-              set_matrix_leds_bender(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY,    mouth, LHS);
+              //ledDriver.setBlinkAndPwmSetAll(pwmset, false, BACKGROUND_PWM_VAL);//reset all leds to off no too flashy on display bad effect
+              set_matrix_leds_bender(pwmset, frame, old_matrix_peak_val, CLEAR,       mouth);
+              set_matrix_leds_bender(pwmset, frame, new_matrix_peak_val, WRITE_ARRAY, mouth);
               break;  
 
         default:
@@ -524,7 +508,9 @@ void loop()
               
       } // end of switch(button_state)
       
+      //capture old value which will be erased next time
       old_matrix_peak_val = new_matrix_peak_val;
+      
     } // end of update matrix
 
     /* reset state ready for next interrupt */
@@ -533,8 +519,11 @@ void loop()
 
 } /* end of main loop */
 
-
-void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs)
+/*
+* function to make benders face
+*
+*/
+void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece)
 {
   uint8_t col=0;
   uint8_t i=0;
@@ -551,7 +540,7 @@ void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint
     data = mouthPiece->trail_data;
   }
 
-  for(col=4; col<24; col +=4 )
+  for(col=5; col<24; col +=5 )
   {
     // do teeth
     //Serial.print("col=\t"); Serial.print(col); 
@@ -607,7 +596,10 @@ void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint
 }
 
 
-
+/*
+* function to light up matrix
+*
+*/
 void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t clear, mouth_data *mouthPiece, uint8_t lhs_or_rhs)
 {
   /*
@@ -751,9 +743,10 @@ void make_sine_table( mouth_data *mouthD, uint8_t brightness)
 }
 
 
-#ifdef DO_PRINT_AUTOGAIN_DISPLAY
+
 void print_autogain_display( int16_t x, uint16_t y,uint16_t z) 
 {
+  #ifdef DO_PRINT_AUTOGAIN_DISPLAY
   x=(x/64);
   y=(y/64);
   z=(z/64);
@@ -806,8 +799,9 @@ void print_autogain_display( int16_t x, uint16_t y,uint16_t z)
   
   Serial.println("|");
   
+  #endif
 }
-#endif
+
 
 
 

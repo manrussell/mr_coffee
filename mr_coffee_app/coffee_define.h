@@ -28,7 +28,6 @@
   //Arduino
 #define ISR_FREQ_HZ         60
 #define CLOCK_SPEED_MHZ     16000000
-#define DO_BUTTON_INTERRUPT  TRUE
 
 #define KIT_FACE    0
 #define BENDER_FACE 1
@@ -44,8 +43,12 @@
 #define PWMPIN            8
 #define MOSFET_GATE_PIN   7
 
-#define BUTTON_PIN_0        3
-#define BUTTON_PIN_1        2
+#define BUTTON_PIN_0        2
+#define BUTTON_PIN_1        3
+
+//this is modes +1 because this value is modulous'd
+#define BUTTON_ZERO_MODES 7
+#define BUTTON_ONE_MODES  5
 
   //Matrix
 #define MATRIX_RESETPIN   4
@@ -62,12 +65,8 @@
 
 #define COFFEE_BACKPLATE //better with bigger sine table
 
-//better description here ... 
-#define GAUSS_DIST_WIDTH  3 // one half - exclude the max value eg 1,2,3,(X),3,2,1
 
-//this is modes +1 because this value is modulous'd
-#define BUTTON_ZERO_MODES 2
-#define BUTTON_ONE_MODES  5
+
 
 /*
  * Auto gain
@@ -89,7 +88,7 @@
 */ 
 
 /* need this for serial to work */
-#define DO_SERIAL_DEBUG 
+//#define DO_SERIAL_DEBUG 
 
 /* PRINT_ADVALUE(adc_val); */
 //#define DO_PRINT_ADVALUE
