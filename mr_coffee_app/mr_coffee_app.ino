@@ -48,31 +48,6 @@
  * adc_state .. SAMPLE_ADC_DATA | PROCESS_ADC_DATA 
  * 
  * 
-
-function to make up the sine/gauss tables; knob for decay, knob for brightness
-
-rename lowest_dcoffset -> auto_gain_lowest
-highest_input_read -> auto_gain_max
-
-filter 
-
-// analogReference(type) EXTERNAL EXTERNAL: the voltage applied to the AREF pin (0 to 5V only) is used as the reference.
-// could filter signal for smoothing now
-
-for button '0'
-chgange brightness %7
-
-  enum Current : uint8_t {
-    Current0mA  = 0x00, ///< Disable the current source for the LEDs.
-    Current5mA  = 0x2b, ///< Use 5mA as current source for the LEDs.
-    Current10mA = 0x55, ///< Use 10mA as current source for the LEDs.
-    Current15mA = 0x80, ///< Use 15mA as current source for the LEDs.
-    Current20mA = 0xaa, ///< Use 20mA as current source for the LEDs.
-    Current25mA = 0xd5, ///< Use 25mA as current source for the LEDs.
-    Current30mA = 0xff ///< Use 30mA as current source for the LEDs.
-  };
-
-
 */
 
 
@@ -295,18 +270,14 @@ ISR(TIMER1_OVF_vect)
 uint8_t button_0_count = 0;
 uint8_t button_1_count = 0;
   
-// isr for button press
+// isr for button press, changes brightness of leds
 void button_0_func()
 {
-  // ledDriver.setCurrentSource(AS1130::Current5mA);
-  //alternate face type
   button_0_count++;
   button_0_count %= BUTTON_ZERO_MODES;
-  
-
 }
 
-// isr for button 1
+// isr for button 1 - changes the face type
 void button_1_func()
 {
   button_1_count++;
@@ -359,7 +330,7 @@ void loop()
     //optional serial print out, set DO_PRINT_AUTOGAIN_DISPLAY
     print_autogain_display( adc_val, lowest_dcoffset, highest_input_read ); 
 
-    // capture button state, don't turn off interrupts
+    // capture button state, don't turn off interrupts, because of i2c 
     button_face_state = button_1_count; 
     
     // map to range
@@ -373,8 +344,13 @@ void loop()
       //bender mouth
       adcVals = map( adc_val, lowest_dcoffset, highest_input_read , 0, 2);  
     }
-
     
+    // capture button state, 
+    button_brightness_state = button_0_count;
+    
+    // set brightness from brightness button
+    ledDriver.setCurrentSource(button_brightness_state);
+      
     // no lowpass
     new_matrix_peak_val = adcVals;
 
@@ -392,6 +368,7 @@ void loop()
         4) Serial.println("bender");
         5)
       */    
+
       
       switch(button_face_state)
       {
@@ -423,7 +400,7 @@ void loop()
               
           case 1: 
           /* MR COFFEE wavy */
-              //Serial.println("MR COFFEE wavy");
+              //Serial.println("MR COFFEE wavy");             
               if( old_matrix_peak_val >=11 ) // new_matrix_peak_val
               {
                 //show MR
@@ -450,7 +427,7 @@ void loop()
                
         case 2: 
         /* gauss inwards to centre sweep */
-              //Serial.println("gauss sweeper");
+              //Serial.println("gauss sweeper");              
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
@@ -470,7 +447,7 @@ void loop()
               break;  
         case 3:
         /* knight rider */
-              //Serial.println("bars");
+              //Serial.println("bars");        
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
@@ -483,7 +460,7 @@ void loop()
               break;  
         case 4:
         /* Bender */
-              //Serial.println("bender");
+              //Serial.println("bender");              
               frame = 2;              // 'all on' frame
               pwmset = 1;             // wavy pwmset
               mouth = &mouth_gauss;   // update mouth type
@@ -561,7 +538,7 @@ void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint
         
         for(i=0; i<24; i++)
         {
-          //bottom lippock 
+          //bottom lip
           ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,row_val+2), data[point]);
         }
         break;
@@ -576,7 +553,7 @@ void set_matrix_leds_bender(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint
         
         for(i=0; i<24; i++)
         {
-          //bottom lippock 
+          //bottom lip
           ledDriver.setPwmValue(pwmset, ledDriver.getLedIndex24x5(i,row_val+2), data[point]);
         }
         break;
@@ -679,7 +656,6 @@ void set_matrix_leds(uint8_t pwmset, uint8_t frame, uint8_t row_val, uint8_t cle
   //write picture back
   ledDriver.startPicture(frame, false);
   
-//delay(500);
   MATRIX_DEBUG("Leave set_matrix_leds()");
 }
 
@@ -713,11 +689,9 @@ void make_sine_table( mouth_data *mouthD, uint8_t brightness)
     Serial.println(val);
     
     //RHS
-    //tablet[12+i] = val; // not note start at 1
     mouthD->trail_data[12 + i] = val;
     
     //LHD
-    //tablet[11 - i] = val;
     mouthD->trail_data[11-i] = val;
   }
 
@@ -728,8 +702,6 @@ void make_sine_table( mouth_data *mouthD, uint8_t brightness)
     Serial.print("i = "); Serial.print(i); Serial.print("mouthD->trail_data[i] = "); Serial.println( mouthD->trail_data[i]); 
   }
   Serial.println("");
-
-  // rads=2*pi*f
 }
 
 
