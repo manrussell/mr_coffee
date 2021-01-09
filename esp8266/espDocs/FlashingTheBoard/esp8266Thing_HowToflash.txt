@@ -1,0 +1,77 @@
+
+==========================================================================================
+How to flash:
+the DTR thing didn't seem to work properly so i...
+1)
+  Make sure that pin0 is tied to gnd, the UART Tx/Rx is connected, then toggle the power switch on the Esp8266 
+  when the Arduino IDE is trying to "connect" to the Esp8266. Then after flashing toggle the power switch again.
+  -> Is there a better way than this??
+  
+==========================================================================================
+HW:
+UM232H: USB Uart
+    USB by HUB0
+    GND -> to ground rail,
+    RX,TX -> to Sparkfun esp8266thing
+    DTR pin, not connected.
+    virtual comm port, COM11
+    port setting different from what Arduino did, I plugged in the usbUart after Arduino had started.
+    port setting were 9600, 8-1, none parity, flow control -none.
+
+sparkfun Esp8266 thing:
+    pin0- connect to ground
+    TXD ->> UART rx
+    RDX ->> UART TX
+    DTR pin, not connected.
+    GND both on left hand side of board connected to ground rail ( the one on the other side was disconnected)
+    USB powered by HUB0
+        3V3 -> both were connected to nothing (!) not like in the Sparkfun hookup tutorial...(?)
+            During running operation (after flashing)
+                the 3V3 with the I2C stuff was measuring 3V3,
+                the 3V3 next the UART stuff was 0v
+
+Logic analyser: trace ( only 10 seconds long ) connected to desktop ( all others to laptop )
+    0-DTR  - not connector to anything
+    2- from esp8266 to UART
+    4- from UART  to esp8266
+
+power supply:
+
+
+==========================================================================================
+SW:
+Arduino setting found in
+    workingEsp8266ArduinoSettings_001.png
+
+==========================================================================================
+ArduinoIDE output:
+
+Executable segment sizes:
+IROM   : 228624          - code in flash         (default or ICACHE_FLASH_ATTR)
+IRAM   : 26756   / 32768 - code in IRAM          (ICACHE_RAM_ATTR, ISRs...)
+DATA   : 1248  )         - initialized variables (global, static) in RAM/HEAP
+RODATA : 688   ) / 81920 - constants             (global, static) in RAM/HEAP
+BSS    : 24880 )         - zeroed variables      (global, static) in RAM/HEAP
+Sketch uses 257316 bytes (51%) of program storage space. Maximum is 499696 bytes.
+Global variables use 26816 bytes (32%) of dynamic memory, leaving 55104 bytes for local variables. Maximum is 81920 bytes.
+esptool.py v2.8
+Serial port COM11
+Connecting....
+Chip is ESP8266EX
+Features: WiFi
+Crystal is 26MHz
+MAC: 18:fe:34:ed:c3:5e
+Uploading stub...
+Running stub...
+Stub running...
+Configuring flash size...
+Warning: Could not auto-detect Flash size (FlashID=0x1841f, SizeID=0x1), defaulting to 4MB
+Erasing flash (this may take a while)...
+Chip erase completed successfully in 2.8s
+Flash params set to 0x0040
+Compressed 261472 bytes to 193133...
+Wrote 261472 bytes (193133 compressed) at 0x00000000 in 17.2 seconds (effective 121.8 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Soft resetting...

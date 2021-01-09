@@ -1,0 +1,37 @@
+
+
+
+mic/voice imnput freq range 100->10,000 Hz
+
+what kind of cutoff do i want?
+
+Hardware:
+=========
+
+
+
+
+
+
+
+
+
+
+is this easier in
+software:
+=========
+*) mic-> voltage divider to 1vpk -> ADC,
+
+*)
+ADCVal/2, ->
+some kind of gain control->
+then lowpass
+
+*)
+Absolute value
+/2
+gain
+lowpass
+
+*)
+hjhj

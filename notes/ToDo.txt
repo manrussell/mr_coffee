@@ -1,0 +1,37 @@
+
+
+
+
+
+ToDo:
+=====
+Software:
+=========
+    Fork software.
+    examine software.
+
+Write Test software
+    -> find out about 
+        wifi buttons
+        ADC read val
+        
+
+
+HW:
+===
+power:
+    Is my other power IC 3V3 ? what current rating? 
+    if i power the thing via battery what is the lmit out of its voltage regulator?
+    do i run the 'thing' via its VIN pin? 3.7 tolerent?
+
+    buy hw parts.
+        lm322, 1kOhm pots?, lipo battery (what size and Jst size).
+        
+    mic gain knob ->
+
+what size cap for AC coupling? electrolytic or not?
+
+
+
+
+
